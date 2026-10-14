@@ -1,0 +1,53 @@
+
+services:
+  # ============================================================================
+  # Backend: Flask REST API Deep Learning Service
+  # ============================================================================
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    container_name: flask_dl_api
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      - PORT=5000
+      - PYTHONUNBUFFERED=1
+    networks:
+      - dl_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+  # ============================================================================
+  # Frontend: Streamlit Interactive UI Service
+  # ============================================================================
+  ui:
+    build:
+      context: ./ui
+      dockerfile: Dockerfile
+    container_name: streamlit_dl_ui
+    restart: unless-stopped
+    ports:
+      - "8501:8501"
+    environment:
+      # Internal Docker DNS resolution: 'api' matches the service name defined above
+      - API_URL=http://api:5000/predict
+      - PYTHONUNBUFFERED=1
+    depends_on:
+      - api
+    networks:
+      - dl_network
+
+# ============================================================================
+# Shared Network Configuration
+# Enables container-to-container service discovery via embedded Docker DNS
+# ============================================================================
+networks:
+  dl_network:
+    name: dl_network
+    driver: bridge
