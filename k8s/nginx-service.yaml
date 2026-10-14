@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: sample-nginx-service
+  namespace: default
+  labels:
+    app.kubernetes.io/name: sample-nginx
+    app.kubernetes.io/instance: sample-nginx-v1
+    app.kubernetes.io/component: web-server
+    app.kubernetes.io/part-of: reference-workload
+spec:
+  type: NodePort
+  selector:
+    # Strictly matches the labels defined on sample-nginx-deployment pods
+    app.kubernetes.io/name: sample-nginx
+    app.kubernetes.io/instance: sample-nginx-v1
+    app.kubernetes.io/component: web-server
+  ports:
+    - name: http
+      port: 80           # ClusterIP virtual port exposed within SDN
+      targetPort: 80     # Container port on backing Nginx pods
+      nodePort: 30080    # Static port exposed across all cluster node interfaces
+      protocol: TCP

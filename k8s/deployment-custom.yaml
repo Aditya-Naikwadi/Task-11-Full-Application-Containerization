@@ -1,0 +1,77 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: flask-dl-api-deployment
+  namespace: default
+  labels:
+    app.kubernetes.io/name: flask-dl-api
+    app.kubernetes.io/instance: flask-dl-api-v1
+    app.kubernetes.io/component: backend-api
+    app.kubernetes.io/part-of: task-11-dl-platform
+    app.kubernetes.io/managed-by: kubectl
+spec:
+  # Enforce dual-replica resilience for backend compute serving
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  # Strict selector matching to prevent controller reconciliation errors
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: flask-dl-api
+      app.kubernetes.io/instance: flask-dl-api-v1
+      app.kubernetes.io/component: backend-api
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: flask-dl-api
+        app.kubernetes.io/instance: flask-dl-api-v1
+        app.kubernetes.io/component: backend-api
+    spec:
+      containers:
+        - name: flask-dl-api
+          # Pinned versioned tag loaded into local Minikube image cache
+          image: flask_dl_api:v1.0
+          # Bypass remote registries (Docker Hub/GHCR); enforce local CRI cache resolution
+          imagePullPolicy: Never
+          ports:
+            - name: http-api
+              containerPort: 5000
+              protocol: TCP
+          env:
+            - name: PORT
+              value: "5000"
+            - name: PYTHONUNBUFFERED
+              value: "1"
+          # Resource requests and limits tailored for Deep Learning inference workload
+          resources:
+            requests:
+              cpu: "250m"      # 0.25 core guaranteed for model prediction
+              memory: "512Mi"   # Minimum memory to load TensorFlow runtime & model.h5
+            limits:
+              cpu: "1000m"     # Allow bursting up to 1 full CPU core during inference
+              memory: "1Gi"     # Guardrail threshold before triggering cgroup OOMKilled
+          # Readiness probe gates traffic until the Flask app is listening and model is loaded
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http-api
+              scheme: HTTP
+            initialDelaySeconds: 15  # Accommodates model weight deserialization
+            periodSeconds: 5
+            timeoutSeconds: 3
+            successThreshold: 1
+            failureThreshold: 3
+          # Liveness probe restarts deadlocked worker processes
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http-api
+              scheme: HTTP
+            initialDelaySeconds: 25
+            periodSeconds: 15
+            timeoutSeconds: 3
+            successThreshold: 1
+            failureThreshold: 3

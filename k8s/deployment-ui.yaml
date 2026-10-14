@@ -1,0 +1,77 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: streamlit-dl-ui-deployment
+  namespace: default
+  labels:
+    app.kubernetes.io/name: streamlit-dl-ui
+    app.kubernetes.io/instance: streamlit-dl-ui-v1
+    app.kubernetes.io/component: frontend-ui
+    app.kubernetes.io/part-of: task-11-dl-platform
+    app.kubernetes.io/managed-by: kubectl
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: streamlit-dl-ui
+      app.kubernetes.io/instance: streamlit-dl-ui-v1
+      app.kubernetes.io/component: frontend-ui
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: streamlit-dl-ui
+        app.kubernetes.io/instance: streamlit-dl-ui-v1
+        app.kubernetes.io/component: frontend-ui
+    spec:
+      containers:
+        - name: streamlit-dl-ui
+          image: streamlit_dl_ui:v1.0
+          imagePullPolicy: Never
+          ports:
+            - name: http-ui
+              containerPort: 8501
+              protocol: TCP
+          env:
+            # CoreDNS resolves 'flask-api-service' to the backend ClusterIP
+            - name: API_URL
+              value: "http://flask-api-service:5000/predict"
+            - name: PYTHONUNBUFFERED
+              value: "1"
+            - name: STREAMLIT_SERVER_PORT
+              value: "8501"
+            - name: STREAMLIT_SERVER_ADDRESS
+              value: "0.0.0.0"
+            - name: STREAMLIT_SERVER_HEADLESS
+              value: "true"
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          readinessProbe:
+            httpGet:
+              path: /_stcore/health
+              port: http-ui
+              scheme: HTTP
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+            successThreshold: 1
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /_stcore/health
+              port: http-ui
+              scheme: HTTP
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            timeoutSeconds: 3
+            successThreshold: 1
+            failureThreshold: 3

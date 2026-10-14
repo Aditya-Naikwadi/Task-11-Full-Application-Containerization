@@ -1,0 +1,58 @@
+# ============================================================================
+# Backend Service: Internal ClusterIP for Flask Deep Learning REST API
+# Accessible strictly within the cluster SDN overlay via CoreDNS
+# ============================================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: flask-api-service
+  namespace: default
+  labels:
+    app.kubernetes.io/name: flask-dl-api
+    app.kubernetes.io/instance: flask-dl-api-v1
+    app.kubernetes.io/component: backend-api
+    app.kubernetes.io/part-of: task-11-dl-platform
+spec:
+  # ClusterIP: Allocates an internal-only virtual IP from service-cluster-ip-range
+  type: ClusterIP
+  selector:
+    # Binds dynamically to healthy Pods from flask-dl-api-deployment
+    app.kubernetes.io/name: flask-dl-api
+    app.kubernetes.io/instance: flask-dl-api-v1
+    app.kubernetes.io/component: backend-api
+  ports:
+    - name: http-api
+      port: 5000         # Virtual port exposed within the cluster SDN
+      targetPort: 5000   # Container port where Flask is listening (EXPOSE 5000)
+      protocol: TCP
+
+---
+
+# ============================================================================
+# Frontend Service: External NodePort for Streamlit Interactive Dashboard
+# Accessible externally from the host browser via Minikube's node interface
+# ============================================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: streamlit-ui-service
+  namespace: default
+  labels:
+    app.kubernetes.io/name: streamlit-dl-ui
+    app.kubernetes.io/instance: streamlit-dl-ui-v1
+    app.kubernetes.io/component: frontend-ui
+    app.kubernetes.io/part-of: task-11-dl-platform
+spec:
+  # NodePort: Allocates a dedicated port on every node's external IP interface
+  type: NodePort
+  selector:
+    # Binds dynamically to healthy Pods from streamlit-dl-ui-deployment
+    app.kubernetes.io/name: streamlit-dl-ui
+    app.kubernetes.io/instance: streamlit-dl-ui-v1
+    app.kubernetes.io/component: frontend-ui
+  ports:
+    - name: http-ui
+      port: 8501         # Cluster-internal virtual port
+      targetPort: 8501   # Target port inside Streamlit container (EXPOSE 8501)
+      nodePort: 30851    # Static port exposed on Minikube host interface (range 30000-32767)
+      protocol: TCP

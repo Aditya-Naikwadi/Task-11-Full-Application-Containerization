@@ -1,0 +1,72 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app-deployment
+  namespace: default
+  labels:
+    app.kubernetes.io/name: web-app
+    app.kubernetes.io/instance: web-app-v1
+    app.kubernetes.io/component: frontend-server
+    app.kubernetes.io/part-of: task-12-k8s-platform
+    app.kubernetes.io/managed-by: kubectl
+spec:
+  # Enforce dual-replica redundancy and high availability across the cluster
+  replicas: 2
+  # Zero-downtime rolling update configuration
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1        # Allow 1 surplus pod during updates
+      maxUnavailable: 0  # Guarantee 100% service capacity during rollouts
+  # Immutable selector contract: must strictly match template labels
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: web-app
+      app.kubernetes.io/instance: web-app-v1
+      app.kubernetes.io/component: frontend-server
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: web-app
+        app.kubernetes.io/instance: web-app-v1
+        app.kubernetes.io/component: frontend-server
+    spec:
+      containers:
+        - name: web-container
+          # High-performance lightweight OCI image
+          image: nginx:1.25.4-alpine
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+          # Baseline compute governance & Linux CFS cgroup quotas
+          resources:
+            requests:
+              cpu: "100m"      # 0.1 core guaranteed
+              memory: "64Mi"    # 64 Mebibytes guaranteed
+            limits:
+              cpu: "250m"      # 0.25 core ceiling
+              memory: "128Mi"   # 128 Mebibytes hard limit before OOMKill
+          # Kubelet probe: gates traffic admission into EndpointSlice
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+              scheme: HTTP
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 2
+            successThreshold: 1
+            failureThreshold: 3
+          # Kubelet probe: detects deadlock and triggers container restart
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+              scheme: HTTP
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 2
+            successThreshold: 1
+            failureThreshold: 3
