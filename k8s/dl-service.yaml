@@ -1,0 +1,36 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: dl-api-service
+  labels:
+    app: dl-api
+    tier: backend
+spec:
+  # ClusterIP: Restricts traffic strictly to internal cluster pod-to-service communication (East-West)
+  type: ClusterIP
+  selector:
+    app: dl-api
+  ports:
+    - name: http-api
+      protocol: TCP
+      port: 5000
+      targetPort: 5000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: dl-ui-service
+  labels:
+    app: dl-ui
+    tier: frontend
+spec:
+  # NodePort: Exposes the frontend service externally on each cluster node's IP (North-South)
+  type: NodePort
+  selector:
+    app: dl-ui
+  ports:
+    - name: http-ui
+      protocol: TCP
+      port: 8501
+      targetPort: 8501
+      nodePort: 30085

@@ -1,0 +1,92 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dl-api-deployment
+  labels:
+    app: dl-api
+    tier: backend
+    framework: flask
+spec:
+  # Set to 2 replicas for high availability and horizontal inference request distribution
+  replicas: 2
+  selector:
+    matchLabels:
+      app: dl-api
+  template:
+    metadata:
+      labels:
+        app: dl-api
+        tier: backend
+    spec:
+      containers:
+        - name: dl-api-container
+          # Local Task 11 Docker image tag found in your Docker Desktop engine:
+          image: task11-api:latest
+          # CRITICAL FOR LOCAL MINIKUBE DEVELOPMENT:
+          # imagePullPolicy: Never forces the Kubelet container runtime to strictly consume
+          # images pre-loaded into the local Minikube Docker/CRI cache (e.g., via 'minikube image load').
+          # This prevents Kubernetes from attempting a public registry pull (e.g., Docker Hub),
+          # which would fail with ErrImagePull / ImagePullBackOff for locally built images.
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 5000
+              name: http-api
+              protocol: TCP
+          env:
+            - name: PORT
+              value: "5000"
+            - name: PYTHONUNBUFFERED
+              value: "1"
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "512Mi"
+            limits:
+              cpu: "1000m"
+              memory: "1Gi"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dl-ui-deployment
+  labels:
+    app: dl-ui
+    tier: frontend
+    framework: streamlit
+spec:
+  # Set to 1 replica for interactive session-based UI management
+  replicas: 1
+  selector:
+    matchLabels:
+      app: dl-ui
+  template:
+    metadata:
+      labels:
+        app: dl-ui
+        tier: frontend
+    spec:
+      containers:
+        - name: dl-ui-container
+          # Local Task 11 Docker image tag found in your Docker Desktop engine:
+          image: task11-ui:latest
+          # CRITICAL FOR LOCAL MINIKUBE DEVELOPMENT:
+          # imagePullPolicy: Never enforces zero outbound network requests for image resolution,
+          # isolating image fetching to the Minikube local container runtime cache.
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 8501
+              name: http-ui
+              protocol: TCP
+          env:
+            - name: API_URL
+              # Targets the backend ClusterIP Service DNS inside the Kubernetes cluster
+              value: "http://dl-api-service:5000/predict"
+            - name: PYTHONUNBUFFERED
+              value: "1"
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
