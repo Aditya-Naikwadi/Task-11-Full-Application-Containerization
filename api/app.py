@@ -54,6 +54,21 @@ def load_or_initialize_model():
 model = load_or_initialize_model()
 
 
+@app.route("/", methods=["GET"])
+def index():
+    """Root endpoint welcoming users and directing to UI/health endpoints."""
+    return jsonify({
+        "service": "Deep Learning Inference API",
+        "status": "online",
+        "model_loaded": model is not None,
+        "ui_url": "http://localhost:8501",
+        "endpoints": {
+            "health": "/health",
+            "predict": "/predict (POST)"
+        }
+    }), 200
+
+
 @app.route("/health", methods=["GET"])
 def health_check():
     """Health check endpoint for Docker container verification."""

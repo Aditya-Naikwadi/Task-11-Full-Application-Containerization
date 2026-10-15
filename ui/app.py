@@ -44,25 +44,48 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Configuration from environment variables (overridden by Docker Compose to http://api:5000/predict)
-DEFAULT_API_URL = os.getenv("API_URL", "http://localhost:5000/predict")
+# Configuration from environment variables (defaults to 127.0.0.1 for local Windows execution)
+env_api = os.getenv("API_URL")
+if not env_api:
+    DEFAULT_API_URL = "http://127.0.0.1:5000/predict"
+else:
+    DEFAULT_API_URL = env_api
 
 # Sidebar Configuration
-st.sidebar.image("https://img.icons8.com/clouds/200/brain.png", width=120)
+try:
+    st.sidebar.image("https://img.icons8.com/clouds/200/brain.png", width=120)
+except Exception:
+    st.sidebar.markdown("# 🧠")
+
 st.sidebar.title("⚙️ Service Settings")
 api_url = st.sidebar.text_input("Backend API Endpoint", value=DEFAULT_API_URL)
 
 st.sidebar.markdown("---")
 st.sidebar.subheader("System Health")
 health_url = api_url.replace("/predict", "/health")
+connected = False
 try:
-    health_resp = requests.get(health_url, timeout=3)
+    health_resp = requests.get(health_url, timeout=2)
     if health_resp.status_code == 200:
         st.sidebar.success("🟢 API Service Connected")
+        connected = True
     else:
         st.sidebar.warning(f"🟡 API Status Code: {health_resp.status_code}")
 except Exception:
-    st.sidebar.error("🔴 API Service Offline")
+    # If using 'localhost' or 'api' failed, check if 127.0.0.1 works
+    if "localhost" in api_url or "api" in api_url:
+        fallback_url = "http://127.0.0.1:5000/health"
+        try:
+            fb_resp = requests.get(fallback_url, timeout=2)
+            if fb_resp.status_code == 200:
+                st.sidebar.warning("⚠️ Connected via 127.0.0.1 (Tip: update URL above to `http://127.0.0.1:5000/predict`)")
+                connected = True
+        except Exception:
+            pass
+
+    if not connected:
+        st.sidebar.error("🔴 API Service Offline")
+        st.sidebar.caption("Make sure `python api/app.py` is running on port 5000.")
 
 st.sidebar.markdown("---")
 st.sidebar.caption("Antigravity ML Engine • Production Ready Container")
